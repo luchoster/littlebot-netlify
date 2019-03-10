@@ -6,9 +6,11 @@
  */
 
 if ( $has_prod_hook || $has_stage_hook ) : ?>
-	<h4 style="margin-bottom: 0;"><?php esc_html_e( 'Publish to', 'lbn-netlifly' ); ?>:</h4>
-	<div><label><input data-env="stage" type="checkbox" name="lbn_published_stage" <?php if ( $published_stage ) : ?>checked<?php endif; ?>>Stage</label></div>
-	<div><label><input data-env="production" type="checkbox" name="lbn_published_production" <?php if ( $published_production ) : ?>checked<?php endif; ?>>Production</label></div>
+	<h4 style="margin-bottom: 0;"><?php esc_html_e( 'Save as', 'lbn-netlifly' ); ?>:</h4>
+	<div><label><input data-env="stage" type="radio" name="lbn_published" value="lbn_published_stage" <?php if ( $published_stage ) : ?>checked<?php endif; ?>>Draft</label></div>
+	<div><label><input data-env="production" type="radio" name="lbn_published" value="lbn_published_production" <?php if ( $published_production ) : ?>checked<?php endif; ?>>Publication</label></div>
+	<br/>
+	<div><label>Content will be available in a few minutes (~2min)</label></div>
 <?php else : ?>
 	<div class="no-hooks">
 		<?php

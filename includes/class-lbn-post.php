@@ -45,8 +45,9 @@ class LBN_Post {
 		add_action( 'save_post', array( $this, 'save_post' ), 10, 3 );
 		add_action( 'delete_post', array( $this, 'save_post' ), 10, 3 );
 		add_action( 'wp_insert_post_data', array( $this, 'insert_post' ), 10, 3 );
-		add_action( 'manage_posts_columns', array( $this, 'show_publish_status' ), 10, 3 );
-		add_action( 'manage_posts_custom_column', array( $this, 'build_column' ), 15, 3 );
+		add_filter( 'manage_posts_columns', array( $this, 'add_publish_status'), 10, 3);
+		add_action( 'manage_posts_custom_column', array( $this, 'build_column'), 15, 3 );
+		add_filter( 'manage_edit-post_sortable_columns', array( $this, 'sortable_status'), 15, 3 );
 	}
 
 	/**
@@ -56,12 +57,9 @@ class LBN_Post {
 	 *
 	 * @return array
 	 */
-	public function show_publish_status( $columns ) {
-		return array_merge( $columns,
-			array(
-				'Published' => __( 'Published', 'lb-netlifly' ),
-			)
-		);
+	public function add_publish_status( $columns ) {
+		$columns['state'] = 'Status';
+		return $columns;
 	}
 
 	/**
@@ -71,22 +69,30 @@ class LBN_Post {
 	 * @param  int   $post_id   the post id.
 	 * @return void
 	 */
-	public function build_column( $columns, $post_id ) {
+	public function build_column( $column, $post_id ) {
+		switch ( $column ) {
+			case 'state' :
+				$stage_status = (bool) get_post_meta( $post_id, 'lbn_published_stage', true );
+				$prod_status = (bool) get_post_meta( $post_id, 'lbn_published_production', true );
 
-		$prod_status = (bool) get_post_meta( $post_id, 'lbn_published_stage', true );
-		$stage_status = (bool) get_post_meta( $post_id, 'lbn_published_production', true );
+				if ( $prod_status ) {
+					echo 'Published';
+				}
 
-		if ( $prod_status ) {
-			echo sprintf( '<div>%s</div>', esc_html( 'Production', 'lb-netlifly' ) );
+				if ( $stage_status ) {
+					echo 'Draft';
+				}
+
+				if ( ! $stage_status && ! $prod_status ) {
+					echo '—';
+				}
+				break;
 		}
+	}
 
-		if ( $stage_status ) {
-			echo sprintf( '<div>%s</div>', esc_html( 'Stage', 'lb-netlifly' ) );
-		}
-
-		if ( ! $stage_status && ! $prod_status ) {
-			echo '—';
-		}
+	public function sortable_status( $columns ) {
+		$columns['state'] = 'Status';
+		return $columns;
 	}
 
 	/**
@@ -131,22 +137,23 @@ class LBN_Post {
 			) {
 			return;
 		}
+		if (isset($_POST['lbn_published'])) {
+			$val = $_POST["lbn_published"];
+			if($val == "lbn_published_stage") {
+				update_post_meta( $post->ID, 'lbn_published_stage', true );
+				update_post_meta( $post->ID, 'lbn_published_production', false );
+			}
+			else if ($val == "lbn_published_production") {
+				update_post_meta( $post->ID, 'lbn_published_production', true );
+				update_post_meta( $post->ID, 'lbn_published_stage', false );
+			}
 
-		// Is this post published.
-		$published_stage = isset( $_POST['lbn_published_stage'] ) ? true : false;
-		$published_production = isset( $_POST['lbn_published_production'] ) ? true : false;
+			$netlifly_stage = new LBN_Netlifly( 'stage' );
+			$netlifly_prod = new LBN_Netlifly( 'production' );
 
-		// Update published status.
-		update_post_meta( $post->ID, 'lbn_published_stage', $published_stage );
-		update_post_meta( $post->ID, 'lbn_published_production', $published_production );
-
-		// deploy to stage?
-		$netlifly_stage = new LBN_Netlifly( 'stage' );
-		$netlifly_stage->call_build_hook();
-
-		// deploy to production?
-		$netlifly_stage = new LBN_Netlifly( 'production' );
-		$netlifly_stage->call_build_hook();
+			// Deploy to both env, will only create page depending on the lbn_published_x variable
+			$netlifly_stage->call_build_hook();
+			$netlifly_prod->call_build_hook();
+		}
 	}
-
 }
